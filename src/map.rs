@@ -22,7 +22,7 @@ where
     V: Clone + PartialEq,
 {
     range: Range<R>,
-    value: V,
+    pub value: V,
 }
 
 impl<R, V> InversionEntry<R, V>
@@ -33,6 +33,10 @@ where
     #[allow(dead_code)]
     pub(crate) fn new(range: Range<R>, value: V) -> Self {
         Self { range, value }
+    }
+
+    pub fn range(&self) -> &Range<R> {
+        &self.range
     }
 
     pub fn start_inclusive(&self) -> &R {
