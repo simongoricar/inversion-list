@@ -5,13 +5,9 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[workspace]
-members = ["test-utilities"]
-
-
 [dependencies]
 num = "0.4.1"
 thiserror = "1.0.48"
 
 [dev-dependencies]
-test_utilities = { path = "./test-utilities" }
+itertools = "0.11.0"

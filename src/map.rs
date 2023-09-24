@@ -18,8 +18,8 @@ use crate::{
 #[derive(Clone, Debug)]
 pub struct InversionEntry<R, V>
 where
-    R: Clone,
-    V: Clone,
+    R: num::Integer + Copy,
+    V: Clone + PartialEq,
 {
     range: Range<R>,
     value: V,
@@ -27,9 +27,14 @@ where
 
 impl<R, V> InversionEntry<R, V>
 where
-    R: Clone,
-    V: Clone,
+    R: num::Integer + Copy,
+    V: Clone + PartialEq,
 {
+    #[allow(dead_code)]
+    pub(crate) fn new(range: Range<R>, value: V) -> Self {
+        Self { range, value }
+    }
+
     pub fn start_inclusive(&self) -> &R {
         &self.range.start
     }
@@ -40,6 +45,45 @@ where
     }
 }
 
+impl<R> InversionEntry<R, ()>
+where
+    R: num::Integer + Copy,
+{
+    /// Internal [`InversionEntry`]`<R, ()>` creation method (for testing).
+    ///
+    /// ### Panics
+    /// This method panics if the provided range is invalid (must not be unbounded on either side or empty).
+    #[allow(dead_code)]
+    pub(crate) fn new_unit<B>(range: B) -> Self
+    where
+        B: RangeBounds<R>,
+    {
+        let range = range_bounds_to_range(range)
+            .expect("range should not be unbounded on either side or empty");
+
+        Self { range, value: () }
+    }
+}
+
+impl<R, V> PartialEq for InversionEntry<R, V>
+where
+    R: num::Integer + Copy,
+    V: Clone + PartialEq,
+{
+    fn eq(&self, other: &Self) -> bool {
+        if self.range.start != other.range.start {
+            return false;
+        }
+
+        if self.range.end != other.range.end {
+            return false;
+        }
+
+        self.value == other.value
+    }
+}
+
+
 /// An inversion map (i.e. an [inversion list](https://en.wikipedia.org/wiki/Inversion_list)
 /// where each range also has an associated value).
 ///
@@ -49,7 +93,7 @@ where
 pub struct InversionMap<R, V>
 where
     R: num::Integer + Copy,
-    V: Clone,
+    V: Clone + PartialEq,
 {
     /// A vector of ascending entries (ranges).
     entries: Vec<InversionEntry<R, V>>,
@@ -58,7 +102,7 @@ where
 impl<R, V> InversionMap<R, V>
 where
     R: num::Integer + Copy,
-    V: Clone,
+    V: Clone + PartialEq,
 {
     /// Initialize a new empty inversion map.
     #[allow(clippy::new_without_default)]
@@ -221,7 +265,7 @@ where
                         our_end_exclusive;
 
                     self.entries.splice(
-                        start_overlapping_entry_index
+                        start_overlapping_entry_index + 1
                             ..end_overlapping_entry_index,
                         std::iter::once(our_entry),
                     );
@@ -337,7 +381,7 @@ where
 impl<R, V> Default for InversionMap<R, V>
 where
     R: num::Integer + Copy,
-    V: Clone,
+    V: Clone + PartialEq,
 {
     #[inline]
     fn default() -> Self {
@@ -357,7 +401,7 @@ where
 impl<R, V> InversionMap<R, V>
 where
     R: num::Integer + Copy,
-    V: Clone,
+    V: Clone + PartialEq,
 {
     pub fn iter(&self) -> InversionMapIter<R, V> {
         InversionMapIter {
@@ -375,7 +419,7 @@ where
 impl<R, V> IntoIterator for InversionMap<R, V>
 where
     R: num::Integer + Copy,
-    V: Clone,
+    V: Clone + PartialEq,
 {
     type Item = InversionEntry<R, V>;
     type IntoIter = InversionMapIntoIter<R, V>;
@@ -390,7 +434,7 @@ where
 impl<'m, R, V> IntoIterator for &'m InversionMap<R, V>
 where
     R: num::Integer + Copy,
-    V: Clone,
+    V: Clone + PartialEq,
 {
     type Item = &'m InversionEntry<R, V>;
     type IntoIter = InversionMapIter<'m, R, V>;
@@ -403,12 +447,79 @@ where
 impl<'m, R, V> IntoIterator for &'m mut InversionMap<R, V>
 where
     R: num::Integer + Copy,
-    V: Clone,
+    V: Clone + PartialEq,
 {
     type Item = &'m mut InversionEntry<R, V>;
     type IntoIter = InversionMapMutIter<'m, R, V>;
 
     fn into_iter(self) -> InversionMapMutIter<'m, R, V> {
         self.iter_mut()
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use itertools::assert_equal;
+
+    use super::*;
+    use crate::test_utilities::*;
+
+    #[test]
+    pub fn continious_inversion_map() -> TestResult {
+        let mut map = InversionMap::<u8, ()>::new();
+
+        assert!(map.is_empty());
+        assert_eq!(map.len(), 0);
+
+        map.insert(0..=20, ())?;
+
+        assert!(!map.is_empty());
+        assert_eq!(map.len(), 1);
+
+        map.insert(0..5, ())?;
+        map.insert(5..7, ())?;
+
+        assert!(!map.is_empty());
+        assert_eq!(map.len(), 3);
+
+        map.insert(1..3, ())?;
+
+        assert_eq!(map.len(), 5);
+
+        map.insert(14..16, ())?;
+
+        assert_eq!(map.len(), 7);
+
+        map.insert(12..18, ())?;
+
+        assert_eq!(map.len(), 7);
+
+        assert_equal(
+            map.into_iter(),
+            vec![
+                InversionEntry::new_unit(0..1),
+                InversionEntry::new_unit(1..3),
+                InversionEntry::new_unit(3..5),
+                InversionEntry::new_unit(5..7),
+                InversionEntry::new_unit(7..12),
+                InversionEntry::new_unit(12..18),
+                InversionEntry::new_unit(18..=20),
+            ],
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    pub fn non_continious_inversion_map() -> TestResult {
+        let mut map = InversionMap::<u8, ()>::new();
+
+        map.insert(0..10, ())?;
+        map.insert(15..18, ())?;
+
+        assert_eq!(map.len(), 2);
+
+        Ok(())
     }
 }

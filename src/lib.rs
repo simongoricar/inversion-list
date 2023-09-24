@@ -77,4 +77,7 @@ pub mod iter;
 mod map;
 mod utilities;
 
+#[cfg(test)]
+pub mod test_utilities;
+
 pub use map::{InversionEntry, InversionMap};

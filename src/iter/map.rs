@@ -9,7 +9,7 @@ use crate::InversionEntry;
 pub struct InversionMapIter<'m, R, V>
 where
     R: num::Integer + Copy,
-    V: Clone,
+    V: Clone + PartialEq,
 {
     pub(crate) inner_iterator: std::slice::Iter<'m, InversionEntry<R, V>>,
 }
@@ -17,7 +17,7 @@ where
 impl<'m, R, V> Iterator for InversionMapIter<'m, R, V>
 where
     R: num::Integer + Copy,
-    V: Clone,
+    V: Clone + PartialEq,
 {
     type Item = &'m InversionEntry<R, V>;
 
@@ -33,7 +33,7 @@ where
 impl<'m, R, V> ExactSizeIterator for InversionMapIter<'m, R, V>
 where
     R: num::Integer + Copy,
-    V: Clone,
+    V: Clone + PartialEq,
 {
     fn len(&self) -> usize {
         self.inner_iterator.len()
@@ -48,7 +48,7 @@ where
 pub struct InversionMapMutIter<'m, R, V>
 where
     R: num::Integer + Copy,
-    V: Clone,
+    V: Clone + PartialEq,
 {
     pub(crate) inner_iterator: std::slice::IterMut<'m, InversionEntry<R, V>>,
 }
@@ -56,7 +56,7 @@ where
 impl<'m, R, V> Iterator for InversionMapMutIter<'m, R, V>
 where
     R: num::Integer + Copy,
-    V: Clone,
+    V: Clone + PartialEq,
 {
     type Item = &'m mut InversionEntry<R, V>;
 
@@ -72,7 +72,7 @@ where
 impl<'m, R, V> ExactSizeIterator for InversionMapMutIter<'m, R, V>
 where
     R: num::Integer + Copy,
-    V: Clone,
+    V: Clone + PartialEq,
 {
     fn len(&self) -> usize {
         self.inner_iterator.len()
@@ -88,7 +88,7 @@ where
 pub struct InversionMapIntoIter<R, V>
 where
     R: num::Integer + Copy,
-    V: Clone,
+    V: Clone + PartialEq,
 {
     pub(crate) remaining_entries: VecDeque<InversionEntry<R, V>>,
 }
@@ -96,7 +96,7 @@ where
 impl<R, V> Iterator for InversionMapIntoIter<R, V>
 where
     R: num::Integer + Copy,
-    V: Clone,
+    V: Clone + PartialEq,
 {
     type Item = InversionEntry<R, V>;
 
@@ -114,7 +114,7 @@ where
 impl<R, V> ExactSizeIterator for InversionMapIntoIter<R, V>
 where
     R: num::Integer + Copy,
-    V: Clone,
+    V: Clone + PartialEq,
 {
     fn len(&self) -> usize {
         self.remaining_entries.len()

@@ -1,10 +1,11 @@
 use thiserror::Error;
 
+use crate::error::InsertError;
 
 #[derive(Error, Clone, Debug)]
 pub enum TestError {
     #[error("insertion error: {0}")]
-    InsertError(#[from] inversion_list::error::InsertError),
+    InsertError(#[from] InsertError),
 }
 
 pub type TestResult = Result<(), TestError>;
