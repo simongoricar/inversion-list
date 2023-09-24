@@ -5,7 +5,7 @@ use std::{
 };
 
 use crate::{
-    error::InsertError,
+    error::{InsertError, LookupError},
     iter::{InversionMapIntoIter, InversionMapIter, InversionMapMutIter},
     utilities::range_bounds_to_range,
 };
@@ -190,14 +190,12 @@ where
             return Ok(());
         }
 
-        // One of four things can occur:
-        // - our range does not overlap any existing range,
-        // - our range is fully inside another range,
-        // - our range partially overlaps with another range, or,
-        // - our range envelops one (or more) ranges inside it.
-
+        // - Ok indicates the value overlaps an entry (the inner value is the index of the overlapping entry)
+        // - Err indicates the value *does not overlap* an entry (the inner value is the index you could
+        //   insert that value at for it to still be sorted)
         let start_overlap = self.entry_index_by_value(our_start_inclusive);
-        let end_overlap = self.entry_index_by_value(our_end_exclusive);
+        let end_overlap =
+            self.entry_index_by_value(our_end_exclusive - R::one());
 
         match (start_overlap, end_overlap) {
             (
@@ -276,7 +274,9 @@ where
 
                 // Note: if `start_insert_point` and `end_insert_point` don't match, this means the new range
                 // encloses one or more other entries. These entries will be removed.
+
                 // TODO Should there be a different method or an option that sets this deletion/overwriting behaviour?
+                //      Maybe we could return the removed entries?
 
                 if start_insert_point == end_insert_point {
                     self.entries.insert(start_insert_point, our_entry);
@@ -288,29 +288,118 @@ where
                 }
             }
             (Ok(start_overlapping_entry_index), Err(end_insert_point)) => {
-                // Partially overlaps an entry on its left side - we'll shorten the end of that one.
-                // Can also completely envelop one or more existing entry inside its range (those will be removed).
-                self.entries[start_overlapping_entry_index].range.end =
-                    our_start_inclusive;
-                self.entries.splice(
-                    start_overlapping_entry_index..=end_insert_point,
-                    std::iter::once(our_entry),
-                );
+                if self.entries[start_overlapping_entry_index].range.start
+                    == our_start_inclusive
+                {
+                    // Fully overlaps the left entry.
+                    // Can also completely envelop one or more existing entry inside its range (those will be removed).
+                    self.entries.splice(
+                        start_overlapping_entry_index..end_insert_point,
+                        std::iter::once(our_entry),
+                    );
+                } else {
+                    // Partially overlaps an entry on its left side - we'll shorten the end of that one.
+                    // Can also completely envelop one or more existing entry inside its range (those will be removed).
+                    self.entries[start_overlapping_entry_index].range.end =
+                        our_start_inclusive;
+                    self.entries.splice(
+                        start_overlapping_entry_index + 1..end_insert_point,
+                        std::iter::once(our_entry),
+                    );
+                }
             }
             (Err(start_insert_point), Ok(end_overlapping_entry_index)) => {
-                // Partially overlaps an entry on its right side - we'll shorten the start of that one.
-                // Can also completely envelop one or more existing entry inside its range (those will be removed).
-                self.entries[end_overlapping_entry_index].range.start =
-                    our_end_exclusive;
-                self.entries.splice(
-                    start_insert_point..end_overlapping_entry_index,
-                    std::iter::once(our_entry),
-                );
+                if self.entries[end_overlapping_entry_index].range.end
+                    == our_end_exclusive
+                {
+                    // Fully overlaps the right entry.
+                    // Can also completely envelop one or more existing entry inside its range (those will be removed).
+                    self.entries.splice(
+                        start_insert_point..=end_overlapping_entry_index,
+                        std::iter::once(our_entry),
+                    );
+                } else {
+                    // Partially overlaps an entry on its right side - we'll shorten the start of that one.
+                    // Can also completely envelop one or more existing entry inside its range (those will be removed).
+                    self.entries[end_overlapping_entry_index].range.start =
+                        our_end_exclusive;
+                    self.entries.splice(
+                        start_insert_point..end_overlapping_entry_index,
+                        std::iter::once(our_entry),
+                    );
+                }
             }
         };
 
         Ok(())
     }
+
+    /// Returns the [`InversionEntry`] (i.e. range) that the `value` is inside of, if any.
+    pub fn entry_at_value(&self, value: R) -> Option<&InversionEntry<R, V>> {
+        let Ok(entry_index) = self.entry_index_by_value(value) else {
+            return None;
+        };
+
+        self.entries.get(entry_index)
+    }
+
+    /// Returns a list of [`InversionEntry`] that exist in the provided `range`.
+    #[rustfmt::skip]
+    pub fn entries_in_range<B>(
+        &self,
+        range: B,
+    ) -> Result<Vec<&InversionEntry<R, V>>, LookupError>
+    where
+        B: RangeBounds<R>,
+    {
+        let Some(range) = range_bounds_to_range(range) else {
+            return Err(LookupError::InvalidRange);
+        };
+
+        let (our_start_inclusive, our_end_exclusive) = (range.start, range.end);
+
+        let start_overlap = self.entry_index_by_value(our_start_inclusive);
+        let end_overlap = self.entry_index_by_value(our_end_exclusive - R::one());
+
+        match (start_overlap, end_overlap) {
+            (
+                Ok(start_overlapping_entry_index),
+                Ok(end_overlapping_entry_index),
+            ) => {
+                Ok(
+                    (start_overlapping_entry_index..=end_overlapping_entry_index)
+                        .map(|index| &self.entries[index])
+                        .collect()
+                )
+            },
+            (Ok(start_overlapping_entry_index), Err(empty_end_point)) => {
+                Ok(
+                    (start_overlapping_entry_index..empty_end_point)
+                        .map(|index| &self.entries[index])
+                        .collect()
+                )
+            },
+            (Err(empty_start_point), Ok(end_overlapping_entry_index)) => {
+                Ok(
+                    (empty_start_point + 1..=end_overlapping_entry_index)
+                        .map(|index| &self.entries[index])
+                        .collect()
+                )
+            },
+            (Err(empty_start_point), Err(empty_end_point)) => {
+                Ok(
+                    (empty_start_point + 1..empty_end_point)
+                        .map(|index| &self.entries[index])
+                        .collect()
+                )
+            },
+        }
+    }
+
+
+    /*
+     * Private methods
+     */
 
     fn entry_index_by_value(&self, value: R) -> Result<usize, usize> {
         self.entries.binary_search_by(|entry| {
@@ -366,15 +455,6 @@ where
 
         Ok((entry_index, entry))
     } */
-
-    /// Returns the [`InversionEntry`] (i.e. range) that the `value` is inside of, if any.
-    pub fn entry_by_value(&self, value: R) -> Option<&InversionEntry<R, V>> {
-        let Ok(entry_index) = self.entry_index_by_value(value) else {
-            return None;
-        };
-
-        self.entries.get(entry_index)
-    }
 }
 
 
@@ -394,8 +474,8 @@ where
 /*
  * Iterator conversion code.
  * Here we implement iter, iter_mut and an owned iterator
- * as well as `IntoIterator` for &, &mut and owned values
- * (allowing us to use `InversionMap` directly in `for` loops).
+ * as well as `IntoIterator` for &, &mut and owned values,
+ * which allows us to use `InversionMap` directly in `for` loops.
  */
 
 impl<R, V> InversionMap<R, V>
@@ -519,6 +599,94 @@ mod tests {
         map.insert(15..18, ())?;
 
         assert_eq!(map.len(), 2);
+
+        map.insert(18..=19, ())?;
+
+        assert_equal(
+            map.iter(),
+            vec![
+                InversionEntry::new_unit(0..10),
+                InversionEntry::new_unit(15..18),
+                InversionEntry::new_unit(18..20),
+            ]
+            .iter(),
+        );
+
+        map.insert(0..100, ())?;
+
+        assert_equal(
+            map.into_iter(),
+            vec![InversionEntry::new_unit(0..100)],
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    pub fn entry_at_value() -> TestResult {
+        let mut map = InversionMap::<u8, ()>::new();
+
+        map.insert(0..10, ())?;
+        map.insert(10..14, ())?;
+        map.insert(2..6, ())?;
+        map.insert(20..30, ())?;
+
+        assert_eq!(
+            map.entry_at_value(2),
+            Some(&InversionEntry::new_unit(2..6))
+        );
+        assert_eq!(
+            map.entry_at_value(5),
+            Some(&InversionEntry::new_unit(2..6))
+        );
+        assert_eq!(
+            map.entry_at_value(6),
+            Some(&InversionEntry::new_unit(6..10))
+        );
+
+        assert_eq!(
+            map.entry_at_value(21),
+            Some(&InversionEntry::new_unit(20..30))
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    pub fn entries_in_range() -> TestResult {
+        let mut map = InversionMap::<u8, ()>::new();
+
+        map.insert(0..10, ())?;
+        map.insert(10..14, ())?;
+        map.insert(2..6, ())?;
+        map.insert(20..30, ())?;
+
+        assert_eq!(
+            map.entries_in_range(3..8),
+            Ok(vec![
+                &InversionEntry::new_unit(2..6),
+                &InversionEntry::new_unit(6..10),
+            ])
+        );
+
+        assert_eq!(
+            map.entries_in_range(0..2),
+            Ok(vec![&InversionEntry::new_unit(0..2)])
+        );
+
+        assert_eq!(
+            map.entries_in_range(10..14),
+            Ok(vec![&InversionEntry::new_unit(10..14)])
+        );
+
+        assert_eq!(
+            map.entries_in_range(10..28),
+            Ok(vec![
+                &InversionEntry::new_unit(10..14),
+                &InversionEntry::new_unit(20..30),
+            ])
+        );
+
 
         Ok(())
     }
