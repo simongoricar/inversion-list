@@ -27,7 +27,7 @@ jobs:
       uses: actions/upload-pages-artifact@v3.0.0
       with:
         name: github-pages
-        path: ./target/doc/inversion-list
+        path: ./target/doc/inversion_list
         retention-days: 1
         
   deploy-documentation:
