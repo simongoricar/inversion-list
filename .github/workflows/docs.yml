@@ -1,0 +1,45 @@
+name: Publish documentation on release
+
+on:
+  release:
+    types: [released]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build-documentation:
+    runs-on: self-hosted
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4.1.1
+    - name: Install stable Rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        toolchain: stable
+    - name: Cache
+      uses: Swatinem/rust-cache@v2
+    - name: Build documentation
+      run: cargo doc --workspace --no-deps --verbose
+    - name: Upload artifact
+      uses: actions/upload-pages-artifact@v3.0.0
+      with:
+        name: github-pages
+        path: ./target/doc/inversion-list
+        retention-days: 1
+        
+  deploy-documentation:
+    runs-on: self-hosted
+    needs: build-documentation
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+      
+    steps:
+      - name: Deploy GitHub pages documentation site
+        uses: actions/deploy-pages@v4
+    
