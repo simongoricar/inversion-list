@@ -8,6 +8,10 @@ on:
 env:
   CARGO_TERM_COLOR: always
 
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
 jobs:
   build-documentation:
     runs-on: self-hosted
@@ -38,6 +42,7 @@ jobs:
     runs-on: self-hosted
     needs: build-documentation
     permissions:
+      contents: read
       pages: write
       id-token: write
     environment:
