@@ -1,5 +1,5 @@
 [package]
-name = "inversion_list"
+name = "inversion-list"
 version = "0.1.0"
 edition = "2021"
 

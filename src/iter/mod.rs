@@ -2,4 +2,4 @@
 
 mod map;
 
-pub use map::{InversionMapIntoIter, InversionMapIter, InversionMapMutIter};
+pub use map::*;

@@ -5,7 +5,7 @@ use crate::InversionEntry;
 /// An iterator over a borrowed [`InversionMap`][crate::InversionMap].
 ///
 /// To create this iterator, see the [`InversionMap::iter`][crate::InversionMap::iter] method.
-/// Produces borrowed [`InversionEntry`][InversionEntry] elements.
+/// Produces borrowed [`InversionEntry`] elements.
 pub struct InversionMapIter<'m, R, V>
 where
     R: num::Integer + Copy,
@@ -44,7 +44,7 @@ where
 /// An iterator over a mutably borrowed [`InversionMap`][crate::InversionMap].
 ///
 /// To create this iterator, see the [`InversionMap::iter_mut`][crate::InversionMap::iter_mut] method.
-/// Produces mutably borrowed [`InversionEntry`][InversionEntry] elements.
+/// Produces mutably borrowed [`InversionEntry`] elements.
 pub struct InversionMapMutIter<'m, R, V>
 where
     R: num::Integer + Copy,
@@ -84,7 +84,7 @@ where
 /// An iterator over an owned [`InversionMap`][crate::InversionMap].
 ///
 /// To create this iterator, see the [`InversionMap::into_iter`][crate::InversionMap::into_iter] method.
-/// Produces owned [`InversionEntry`][InversionEntry] elements.
+/// Produces owned [`InversionEntry`] elements.
 pub struct InversionMapIntoIter<R, V>
 where
     R: num::Integer + Copy,

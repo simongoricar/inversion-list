@@ -6,32 +6,41 @@
 //! For example, `0..10`, `10..12` and `12..15` is a continious inversion list.
 //! The list can also be non-continious, for example: `0..5`, `20..21`, `25..30`.
 //!
-//! An **inversion map** is an extension of the inversion list structure where each range has an associated value
+//! An **inversion list map** is an extension of the inversion list structure where each range has an associated value
 //! (for example, `0..10 (true)`, `10..12 (false)` and `12..15 (true)`).
 //!
 //! ## Examples
-//! You may call [`InversionMap::new`] to create an empty inversion map, then use [`InversionMap::insert`]
-//! to add new ranges.
+//! You may call [`InversionMap::new`] to create an empty inversion map, then use [`InversionMap::try_insert`]
+//! (or [`InversionMap::insert_with_overwrite`]) to add new ranges.
 //!
 //! ```rust
 //! # use inversion_list::InversionMap;
+//! # use inversion_list::error::InsertError;
+//! let mut inversion_list_map: InversionMap<u8, bool> = InversionMap::new();
 //!
-//! let mut inversion_map: InversionMap<u8, bool> = InversionMap::new();
-//!
-//! inversion_map
-//!     .insert(0..5, false)
+//! inversion_list_map
+//!     .try_insert(0..5, false)
 //!     .expect("Failed to insert first value into inversion map.");
 //!
-//! inversion_map
-//!     .insert(5..10, true)
+//! inversion_list_map
+//!     .try_insert(5..10, true)
 //!     .expect("Failed to insert second value into inversion map.");
 //!
-//! inversion_map
-//!     .insert(15..18, true)
-//!     .expect("Failed to insert second value into inversion map.");
+//! inversion_list_map
+//!     .try_insert(15..19, true)
+//!     .expect("Failed to insert third value into inversion map.");
 //!
-//! assert_eq!(inversion_map.len(), 3);
-//! assert_eq!(inversion_map.span(), Some(0..18));
+//! assert_eq!(inversion_list_map.len(), 3);
+//! assert_eq!(inversion_list_map.span(), Some(0..19));
+//!
+//!
+//! // This range and value pair will not succeed with try_insert due to a collision,
+//! // which is likely what you'd want by default. See insert_with_overwrite for alternatives.
+//! assert_eq!(
+//!     inversion_list_map
+//!         .try_insert(16..18, true),
+//!     Err(InsertError::CollidesWithExistingEntry)
+//! );
 //! ```
 //!
 //! ---
@@ -74,10 +83,12 @@
 
 pub mod error;
 pub mod iter;
+mod list;
 mod map;
 mod utilities;
 
 #[cfg(test)]
 pub mod test_utilities;
 
-pub use map::{InversionEntry, InversionMap};
+pub use list::*;
+pub use map::*;
