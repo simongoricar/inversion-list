@@ -11,8 +11,12 @@ env:
 jobs:
   build-documentation:
     runs-on: self-hosted
+    container:
+      image: ubuntu:latest
     
     steps:
+    - name: Set up required tools
+      run: apt-get update && apt-get install curl build-essential -y
     - name: Checkout repository
       uses: actions/checkout@v4.1.1
     - name: Install stable Rust
