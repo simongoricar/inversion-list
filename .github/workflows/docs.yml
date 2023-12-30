@@ -31,11 +31,13 @@ jobs:
       uses: Swatinem/rust-cache@v2
     - name: Build documentation
       run: cargo doc --workspace --no-deps --verbose
+    - name: Fix up HTML structure
+      run: echo "<meta http-equiv=\"refresh\" content=\"0; url=inversion_list\">" > ./target/doc/index.html
     - name: Upload artifact
       uses: actions/upload-pages-artifact@v3.0.0
       with:
         name: github-pages
-        path: ./target/doc/inversion_list
+        path: ./target/doc
         retention-days: 1
         
   deploy-documentation:
