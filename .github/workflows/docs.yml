@@ -52,6 +52,6 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
       
     steps:
-      - name: Deploy GitHub pages documentation site
+      - name: Deploy documentation on GitHub Pages
         uses: actions/deploy-pages@v4
     
