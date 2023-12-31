@@ -31,8 +31,10 @@ jobs:
       uses: Swatinem/rust-cache@v2
     - name: Build documentation
       run: cargo doc --workspace --no-deps --verbose
-    - name: Fix up HTML structure
+    - name: Add index.html file
       run: echo "<meta http-equiv=\"refresh\" content=\"0; url=inversion_list\">" > ./target/doc/index.html
+    - name: Fix missing read permissions on index.html
+      run: chmod --changes +rX ./target/doc/index.html
     - name: Upload artifact
       uses: actions/upload-pages-artifact@v3.0.0
       with:
