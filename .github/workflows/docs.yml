@@ -34,7 +34,7 @@ jobs:
     - name: Add index.html file
       run: echo "<meta http-equiv=\"refresh\" content=\"0; url=inversion_list\">" > ./target/doc/index.html
     - name: Fix missing read permissions on index.html
-      run: chmod --changes +rX ./target/doc/index.html
+      run: chmod --changes -R +rX "./target/doc"
     - name: Upload artifact
       uses: actions/upload-pages-artifact@v3.0.0
       with:
